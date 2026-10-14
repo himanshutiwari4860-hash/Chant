@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BusAI Navigator</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *{box-sizing:border-box}
+    :root{--bg:#080e19;--panel:#101927;--panel2:#121d2d;--border:#263448;--text:#e7edf7;--muted:#8e9db2;--blue:#5145e5;--green:#42df8d;--red:#ff6877;--yellow:#f4c64d}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,"Segoe UI",Arial,sans-serif;font-size:14px}
+    .topbar{height:74px;display:flex;align-items:center;gap:28px;padding:0 24px;background:#0e1725;border-bottom:1px solid #263448;position:sticky;top:0;z-index:1000}
+    .brand{display:flex;align-items:center;gap:15px;white-space:nowrap;font-size:20px}.brand-icon{color:#8e83ff;font-size:27px}
+    .search{display:flex;align-items:center;gap:0;max-width:500px;flex:1}.search input{min-width:100px;width:100%;height:42px;background:transparent;border:0;color:var(--text);font-size:16px;outline:none;padding:0 10px}.search input::placeholder{color:#8996aa}.search button{height:42px;width:54px;border:0;border-radius:4px;background:#5145e5;color:white;font-size:27px;cursor:pointer}
+    .top-right{margin-left:auto;display:flex;align-items:center;gap:28px}.clock{text-align:right;display:grid;gap:3px}.clock strong{font-size:14px}.clock small{color:var(--muted)}.operator{white-space:nowrap;font-size:16px}
+    .layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;padding:18px 22px;max-width:2000px;margin:auto}.main-column,.sidebar{display:flex;flex-direction:column;gap:16px;min-width:0}.sidebar{max-height:calc(100vh - 105px);overflow:auto;padding-right:3px}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden}.map-panel{height:432px;position:relative;padding:0}#map{height:100%;width:100%;background:#101a27}.map-overlay{position:absolute;z-index:500;top:12px;left:12px;background:#0b1421e8;border:1px solid #33435a;padding:8px 10px;border-radius:5px;font-size:10px;letter-spacing:1px;color:#b7c5d9}.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:5px;box-shadow:0 0 8px #42df8d}
+    .status-strip{min-height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-size:16px}.status-strip b{font-weight:500;color:var(--green);margin-left:8px}
+    h2{font-size:20px;margin:0 0 18px;font-weight:650}h3{text-align:center;font-size:16px;margin:8px 0 12px}.analytics,.route-panel{padding:20px}.chart-wrap{height:240px;position:relative}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}.metrics>div,.route-grid>div{background:#0c1522;border:1px solid #233249;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:8px}.metrics small,.route-grid small{color:var(--muted);font-size:10px;letter-spacing:.7px}.metrics strong{font-size:24px}.metrics span,.route-grid span{color:var(--muted);font-size:12px}.green{color:var(--green)!important}.yellow{color:var(--yellow)!important}.route-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.route-grid strong{font-size:13px;line-height:1.4}
+    .sidebar .panel{padding:18px}.sidebar h2{font-size:19px;margin-bottom:16px}.warning{color:#ffcf43}.alert-card{background:#301b29;border-left:4px solid #ff6877;padding:12px 11px;margin-bottom:10px;border-radius:3px}.alert-card strong{font-size:15px;line-height:1.5;color:#ff9ba4;display:block}.alert-card small{color:#a9b3c3;display:block;margin:6px 0;font-size:11px}.alert-card p{border-left:2px solid #1bbbd5;padding-left:9px;margin:8px 0 0;color:#45d9ed;font-weight:600;line-height:1.5}.alert-card.amber{background:#2b261a;border-left-color:#f4c64d}.alert-card.amber strong{color:#f5d582}.alert-card.amber p{color:#e8c46a;border-color:#e8c46a}
+    .bus-list{display:flex;flex-direction:column;gap:10px}.bus-row{padding:10px 0 10px 10px;border-left:4px solid var(--green);border-bottom:1px solid #202d40}.bus-row:nth-child(3n){border-left-color:#ff8b66}.bus-row:nth-child(4n){border-left-color:#e4bb52}.bus-head{display:flex;justify-content:space-between;gap:8px;font-size:15px;font-weight:650}.bus-meta{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px;margin-top:6px}.on-time{color:var(--green)}.delayed{color:var(--red)}.prediction{padding:12px 0;border-bottom:1px solid #253246}.prediction:last-child{border-bottom:0}.prediction>div{display:flex;justify-content:space-between;align-items:center}.prediction p{margin:9px 0 5px;color:#b7c4d6}.prediction small{color:var(--muted)}.pill{font-size:10px;font-weight:800;letter-spacing:.5px;padding:4px 7px;border-radius:4px}.red-pill{background:#52222c;color:#ff8490}.yellow-pill{background:#45371c;color:#f6cf62}.green-pill{background:#153d31;color:#59e3a2}.purple{color:#9b8cff}.health-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #253246}.health-row:last-child{border:0}.health-row b{font-size:12px}.leaflet-container{font:12px "Segoe UI",Arial,sans-serif}.bus-marker{font-size:17px;text-align:center;line-height:25px;width:25px;height:25px;background:#182738;border:2px solid #76e5a9;border-radius:50%;box-shadow:0 0 12px #65e9ae;color:white}.leaflet-control-zoom a{background:#172436!important;color:#eef!important;border-color:#34465d!important}
+    #toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#27364c;color:white;padding:12px 18px;border:1px solid #40536c;border-radius:7px;transition:.2s;z-index:2000}#toast.show{opacity:1;transform:translate(-50%,0)}
+    @media(max-width:1100px){.layout{grid-template-columns:minmax(0,1fr) 320px;padding:12px}.topbar{gap:12px;padding:0 14px}.brand{font-size:17px}.operator{font-size:13px}.metrics{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:800px){.topbar{height:auto;min-height:70px;flex-wrap:wrap;padding:12px}.brand{width:calc(50% - 10px)}.top-right{margin-left:auto}.clock{display:none}.search{order:3;flex-basis:100%;max-width:none}.layout{display:flex;flex-direction:column}.sidebar{max-height:none;overflow:visible}.map-panel{height:340px}.status-strip{align-items:flex-start;gap:10px;flex-direction:column;padding:14px;font-size:14px}.route-grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-icon">▣</span><strong>BusAI Navigator</strong></div>
+    <form id="searchForm" class="search">
+      <input id="busSearch" placeholder="Search Bus ID (e.g., DL1PD5050)" aria-label="Search Bus ID">
+      <button aria-label="Search bus">⌕</button>
+    </form>
+    <div class="top-right">
+      <div class="clock"><strong id="clock">--:--:--</strong><small id="date">---</small></div>
+      <span class="operator">♟ Operator Mode</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="main-column">
+      <div class="panel map-panel">
+        <div id="map"></div>
+        <div class="map-overlay"><span class="live-dot"></span> LIVE BUS NETWORK</div>
+      </div>
+      <div class="panel status-strip">
+        <strong>Location: Delhi, NCT</strong>
+        <span>System Status: <b><i class="live-dot"></i> Live connection active</b></span>
+      </div>
+      <section class="panel analytics">
+        <h2>⌁ System Analytics</h2>
+        <h3>Top 100 Delayed Buses (minutes)</h3>
+        <div class="chart-wrap"><canvas id="delayChart"></canvas></div>
+        <div class="metrics">
+          <div><small>BUSES TRACKED</small><strong id="tracked">128</strong><span>Across Delhi NCR</span></div>
+          <div><small>ON-TIME RATE</small><strong>84.6%</strong><span class="green">+2.4% today</span></div>
+          <div><small>AVG. DELAY</small><strong>4.8 min</strong><span>Last 60 minutes</span></div>
+          <div><small>ACTIVE ROUTES</small><strong>42</strong><span>Network-wide</span></div>
+        </div>
+      </section>
+      <section class="panel route-panel">
+        <h2>⌖ Route Overview</h2>
+        <div class="route-grid">
+          <div><small>ROUTE 1215</small><strong>Dwarka Sector 21 → Kashmere Gate</strong><span>43 min average delay</span></div>
+          <div><small>ROUTE 1090</small><strong>Uttam Nagar → Noida Sector 62</strong><span class="green">Operating normally</span></div>
+          <div><small>ROUTE 578</small><strong>Najafgarh → Central Secretariat</strong><span>2 buses delayed</span></div>
+        </div>
+      </section>
+    </section>
+
+    <aside class="sidebar">
+      <section class="panel alert-panel">
+        <h2><span class="warning">⚠</span> Critical Alerts</h2>
+        <div class="alert-card">
+          <strong>Possible incident: DL1PD5556 stationary for &gt; 43 min — DL1PD5556</strong>
+          <small>{"routeId":"1215","minutes":43}</small>
+          <p>Divert bus DL1PD5571 (Route 1090) to bypass the incident area and continue service on Route 1215.</p>
+        </div>
+        <div class="alert-card amber">
+          <strong>Heavy congestion detected near Ring Road</strong>
+          <small>Traffic confidence: 91%</small>
+          <p>Consider rerouting buses approaching Kashmere Gate.</p>
+        </div>
+      </section>
+
+      <section class="panel live-panel">
+        <h2>▤ Live Bus Status</h2>
+        <div id="busList" class="bus-list"></div>
+      </section>
+
+      <section class="panel ai-panel">
+        <h2><span class="purple">▣</span> AI Predictions</h2>
+        <div class="prediction"><div><strong>Route 1215</strong><span class="pill red-pill">HIGH RISK</span></div><p>Expected delay: <b>18–25 min</b></p><small>Confidence 92% · Updated just now</small></div>
+        <div class="prediction"><div><strong>Route 578</strong><span class="pill yellow-pill">MODERATE</span></div><p>Expected delay: <b>5–8 min</b></p><small>Confidence 87% · Updated just now</small></div>
+        <div class="prediction"><div><strong>Route 1090</strong><span class="pill green-pill">LOW RISK</span></div><p>Expected delay: <b>0–3 min</b></p><small>Confidence 95% · Updated just now</small></div>
+      </section>
+
+      <section class="panel system-panel">
+        <h2>⚙ System Health</h2>
+        <div class="health-row"><span>GPS Feed</span><b class="green">Connected</b></div>
+        <div class="health-row"><span>Prediction Engine</span><b class="green">Operational</b></div>
+        <div class="health-row"><span>Traffic API</span><b class="yellow">Degraded</b></div>
+        <div class="health-row"><span>Last Sync</span><b id="sync">just now</b></div>
+      </section>
+    </aside>
+  </main>
+  <div id="toast" role="status"></div>
+
+  <script>
+    // Clock updates
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent = now.toLocaleTimeString();
+      document.getElementById('date').textContent = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Sample Bus Data
+    const buses = [
+      { id: 'DL1PD5050', route: '1215', lat: 28.6139, lng: 77.2090, status: 'delayed', delay: '18 min' },
+      { id: 'DL1PD5556', route: '1215', lat: 28.6500, lng: 77.2300, status: 'delayed', delay: '43 min' },
+      { id: 'DL1PD5571', route: '1090', lat: 28.5355, lng: 77.3910, status: 'on-time', delay: '0 min' },
+      { id: 'DL1PD5022', route: '578', lat: 28.5800, lng: 77.0500, status: 'delayed', delay: '6 min' },
+      { id: 'DL1PD8831', route: '1090', lat: 28.6200, lng: 77.1000, status: 'on-time', delay: '2 min' }
+    ];
+
+    // Initialize Map
+    const map = L.map('map').setView([28.6139, 77.2090], 12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{z}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+    }).addTo(map);
+
+    const markers = {};
+    const busListEl = document.getElementById('busList');
+
+    function renderBuses(filter = '') {
+      busListEl.innerHTML = '';
+      
+      // Clear existing markers
+      Object.values(markers).forEach(m => map.removeLayer(m));
+
+      buses.forEach(bus => {
+        if (filter && !bus.id.toLowerCase().includes(filter.toLowerCase()) && !bus.route.includes(filter)) {
+          return;
+        }
+
+        // Add marker
+        const markerHtml = `<div class="bus-marker">🚌</div>`;
+        const customIcon = L.divIcon({ html: markerHtml, className: '', iconSize: [25, 25], iconAnchor: [12, 12] });
+        const marker = L.marker([bus.lat, bus.lng], { icon: customIcon }).addTo(map);
+        marker.bindPopup(`<b>Bus: ${bus.id}</b><br>Route: ${bus.route}<br>Status: ${bus.status} (${bus.delay})`);
+        markers[bus.id] = marker;
+
+        // Add to sidebar list
+        const row = document.createElement('div');
+        row.className = 'bus-row';
+        if(bus.status === 'delayed') row.style.borderLeftColor = 'var(--red)';
+        row.innerHTML = `
+          <div class="bus-head"><span>${bus.id}</span><span class="${bus.status === 'delayed' ? 'delayed' : 'on-time'}">${bus.status.toUpperCase()}</span></div>
+          <div class="bus-meta"><span>Route ${bus.route}</span><span>Delay: ${bus.delay}</span></div>
+        `;
+        row.style.cursor = 'pointer';
+        row.onclick = () => {
+          map.setView([bus.lat, bus.lng], 15);
+          marker.openPopup();
+        };
+        busListEl.appendChild(row);
+      });
+    }
+
+    renderBuses();
+
+    // Search handler
+    document.getElementById('searchForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const query = document.getElementById('busSearch').value.trim();
+      renderBuses(query);
+      showToast(query ? `Filtered by "${query}"` : 'Showing all buses');
+    });
+
+    // Toast notification helper
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'show';
+      setTimeout(() => { toast.className = ''; }, 2500);
+    }
+
+    // Delay Chart Initialization
+    const ctx = document.getElementById('delayChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: Array.from({length: 20}, (_, i) => `Bus ${i+1}`),
+        datasets: [{
+          label: 'Delay (mins)',
+          data: Array.from({length: 20}, () => Math.floor(Math.random() * 40) + 2),
+          backgroundColor: '#5145e5',
+          borderRadius: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#8e9db2', font: { size: 10 } } },
+          y: { grid: { color: '#263448' }, ticks: { color: '#8e9db2' } }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
